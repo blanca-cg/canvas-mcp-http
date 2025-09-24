@@ -2,6 +2,8 @@
 
 A Model Context Protocol (MCP) server that enables AI assistants like Claude to interact with Canvas LMS. This server provides tools for managing courses, announcements, rubrics, assignments, modules, pages, and student data through the Canvas API.
 
+**🚀 Now available as a Claude Desktop Extension for one-click installation!**
+
 ## Features
 
 - List active courses and their details
@@ -14,6 +16,19 @@ A Model Context Protocol (MCP) server that enables AI assistants like Claude to 
 - **Manage course modules and module items**
 - **Manage course pages, including content, revisions, and rollbacks**
 - **Manage quizzes, including questions and question groups**
+
+## Desktop Extension Benefits 🎯
+
+The Canvas MCP server is now available as a **Claude Desktop Extension** for the ultimate user experience:
+
+- **🎯 One-Click Installation**: No terminal commands, no manual configuration
+- **🔒 Secure Configuration**: API tokens stored securely in your OS keychain
+- **🔄 Automatic Updates**: Get new features and fixes automatically
+- **📦 Zero Dependencies**: Everything bundled - no Node.js installation required
+- **🌍 Cross-Platform**: Works seamlessly on macOS and Windows
+- **🎨 Native UI**: Configure settings through Claude Desktop's beautiful interface
+
+Perfect for educators who want powerful Canvas integration without the technical complexity!
 
 ## Student Data Privacy & Anonymization 🔒
 
@@ -104,7 +119,23 @@ Example of how Claude interprets your requests:
 
 ## Installation
 
-### Option 1: NPM Package (Recommended)
+### Option 1: Desktop Extension (Easiest) 🚀
+
+**NEW!** One-click installation with Claude Desktop Extensions:
+
+1. **Download** the latest extension: [canvas-mcp-1.0.8.mcpb](https://github.com/r-huijts/canvas-mcp/releases/latest)
+2. **Double-click** the `.mcpb` file to open with Claude Desktop
+3. **Click "Install"** - that's it!
+4. **Configure** your Canvas API token and base URL through the Claude Desktop UI
+
+**Benefits:**
+- ✅ **One-click installation** - no terminal required
+- ✅ **Automatic updates** when new versions are available
+- ✅ **Secure configuration** - API tokens stored in OS keychain
+- ✅ **No dependencies** - everything bundled in the extension
+- ✅ **Cross-platform** - works on macOS and Windows
+
+### Option 2: NPM Package (Recommended)
 
 The easiest way to use this MCP server is via npm:
 
@@ -118,7 +149,7 @@ Or use directly with npx (no installation required):
 npx @r-huijts/canvas-mcp
 ```
 
-### Option 2: From Source
+### Option 3: From Source
 
 1. Clone this repository and install dependencies:
    ```bash
