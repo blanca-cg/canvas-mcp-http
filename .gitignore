@@ -8,6 +8,8 @@ dist/
 
 # Desktop Extension files
 *.dxt
+*.mcpb
+extension/
 
 # Environment variables
 .env
