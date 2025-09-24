@@ -146,7 +146,7 @@ export function registerQuizTools(server: any, canvas: CanvasClient) {
     "Delete a quiz from a course.",
     {
       courseId: z.string().describe("The ID of the course"),
-      quizId: z.string().describe("The ID of the quiz")
+      quizId: z.string().describe("The ID of the quiz"),
     },
     async ({ courseId, quizId }: { courseId: string; quizId: string }) => {
       try {

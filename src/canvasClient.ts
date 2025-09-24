@@ -181,4 +181,89 @@ export class CanvasClient {
   async gradeSubmission(courseId: string, assignmentId: string, userId: string, data: any) {
     return this.put(`/api/v1/courses/${courseId}/assignments/${assignmentId}/submissions/${userId}`, data);
   }
+
+  // --- Submission Documents ---
+  async getSubmission(courseId: string, assignmentId: string, userId: string, params: any = {}) {
+    return this.get(`/api/v1/courses/${courseId}/assignments/${assignmentId}/submissions/${userId}`, params);
+  }
+
+  async getSubmissionWithAttachments(courseId: string, assignmentId: string, userId: string, options: { anonymous?: boolean } = {}) {
+    const params = { include: ['attachments', 'submission_comments'] };
+    const data = await this.get(`/api/v1/courses/${courseId}/assignments/${assignmentId}/submissions/${userId}`, params);
+    return options.anonymous !== false ? DataAnonymizer.anonymizeSubmissions([data])[0] : data;
+  }
+
+  async getFileInfo(fileId: string): Promise<any> {
+    return this.get(`/api/v1/files/${fileId}`);
+  }
+
+  // Download file content (returns the file data as binary or text depending on type)
+  async downloadFile(fileId: string): Promise<{ data: any; contentType: string; filename: string }> {
+    try {
+      // First get the file metadata to get the download URL
+      const fileInfo = await this.getFileInfo(fileId);
+      
+      // Download the actual file content
+      const response = await this.axios.get(fileInfo.url, { 
+        responseType: 'arraybuffer',
+        // Follow redirects as Canvas often returns redirect URLs
+        maxRedirects: 5
+      });
+      
+      return {
+        data: response.data,
+        contentType: response.headers['content-type'] || fileInfo['content-type'] || 'application/octet-stream',
+        filename: fileInfo.filename || `file_${fileId}`
+      };
+    } catch (error: any) {
+      this.handleError(error);
+    }
+  }
+
+  // Get submission documents with file download capability
+  async getSubmissionDocuments(courseId: string, assignmentId: string, userId: string, options: { 
+    downloadFiles?: boolean; 
+    anonymous?: boolean 
+  } = {}) {
+    try {
+      const submission = await this.getSubmissionWithAttachments(courseId, assignmentId, userId, { anonymous: options.anonymous });
+      
+      const result: any = {
+        submission: submission,
+        attachments: submission.attachments || [],
+        textSubmission: submission.body || null,
+        submissionType: submission.submission_type,
+        downloadedFiles: []
+      };
+
+      // If downloadFiles is true, download all attached files
+      if (options.downloadFiles && submission.attachments && submission.attachments.length > 0) {
+        for (const attachment of submission.attachments) {
+          try {
+            const fileData = await this.downloadFile(attachment.id);
+            result.downloadedFiles.push({
+              id: attachment.id,
+              filename: attachment.filename || attachment.display_name,
+              contentType: fileData.contentType,
+              size: attachment.size,
+              data: fileData.data,
+              // Convert binary data to base64 for JSON serialization if needed
+              dataBase64: Buffer.from(fileData.data).toString('base64')
+            });
+          } catch (error) {
+            console.warn(`Failed to download file ${attachment.id}:`, error);
+            result.downloadedFiles.push({
+              id: attachment.id,
+              filename: attachment.filename || attachment.display_name,
+              error: `Failed to download: ${error instanceof Error ? error.message : 'Unknown error'}`
+            });
+          }
+        }
+      }
+
+      return result;
+    } catch (error: any) {
+      this.handleError(error);
+    }
+  }
 } 

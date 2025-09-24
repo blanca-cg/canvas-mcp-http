@@ -22,7 +22,7 @@ export interface Rubric {
   id: string;
   title: string;
   description?: string;
-} 
+}
 
 export interface RubricStat {
   id: string;
@@ -34,4 +34,52 @@ export interface RubricStat {
   min_score: number;
   max_score: number;
   point_distribution?: { [key: number]: number };
-} 
+}
+
+export interface CanvasFile {
+  id: string;
+  filename: string;
+  display_name: string;
+  content_type: string;
+  size: number;
+  url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubmissionAttachment extends CanvasFile {
+  submission_id?: string;
+}
+
+export interface Submission {
+  id: string;
+  user_id: string;
+  assignment_id: string;
+  body?: string; // For text submissions
+  submission_type: 'online_text_entry' | 'online_upload' | 'online_url' | 'media_recording' | null;
+  workflow_state: string;
+  grade?: string;
+  score?: number;
+  submitted_at?: string;
+  attachments?: SubmissionAttachment[];
+  submission_comments?: any[];
+  attempt?: number;
+}
+
+export interface SubmissionDocumentResult {
+  submission: Submission;
+  attachments: SubmissionAttachment[];
+  textSubmission: string | null;
+  submissionType: string | null;
+  downloadedFiles: DownloadedFile[];
+}
+
+export interface DownloadedFile {
+  id: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  data?: any; // Raw binary data
+  dataBase64?: string; // Base64 encoded data for JSON serialization
+  error?: string; // If download failed
+}
