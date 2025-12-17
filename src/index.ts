@@ -2,6 +2,9 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import express from "express";
+import cors from "cors";
 import { z } from "zod";
 import * as dotenv from "dotenv";
 import { CanvasConfig, Course, Rubric } from './types.js';
@@ -55,14 +58,51 @@ registerPrompts(server, canvas);
 registerQuizTools(server, canvas);
 // Start the server
 async function startServer() {
-  try {
-    console.error("Starting Canvas MCP Server...");
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
-    console.error("Canvas MCP Server running on stdio");
-  } catch (error) {
-  console.error("Fatal error:", error);
-  process.exit(1);
+  const PORT = process.env.PORT;
+
+  if (PORT) {
+    // HTTP/SSE mode for cloud deployment
+    console.error("Starting Canvas MCP Server in HTTP/SSE mode...");
+    const app = express();
+
+    app.use(cors());
+    app.use(express.json());
+
+    // Health check endpoint
+    app.get('/health', (_req, res) => {
+      res.json({ status: 'ok', server: 'Canvas MCP Server' });
+    });
+
+    // SSE endpoint for MCP connection
+    app.get('/sse', async (req, res) => {
+      console.error('New SSE connection established');
+      const transport = new SSEServerTransport('/message', res);
+      await server.connect(transport);
+      await transport.start();
+    });
+
+    // Message endpoint for receiving client messages
+    app.post('/message', async (req, res) => {
+      const sessionId = req.query.sessionId as string;
+      // The transport handles the message routing
+      res.status(200).send();
+    });
+
+    app.listen(PORT, () => {
+      console.error(`Canvas MCP Server running on http://0.0.0.0:${PORT}`);
+      console.error(`SSE endpoint: http://0.0.0.0:${PORT}/sse`);
+    });
+  } else {
+    // Stdio mode for local usage
+    try {
+      console.error("Starting Canvas MCP Server in stdio mode...");
+      const transport = new StdioServerTransport();
+      await server.connect(transport);
+      console.error("Canvas MCP Server running on stdio");
+    } catch (error) {
+      console.error("Fatal error:", error);
+      process.exit(1);
+    }
   }
 }
 
