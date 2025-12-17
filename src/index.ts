@@ -2,9 +2,10 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express from "express";
 import cors from "cors";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import * as dotenv from "dotenv";
 import { CanvasConfig, Course, Rubric } from './types.js';
@@ -65,12 +66,12 @@ async function startServer() {
   const PORT = process.env.PORT;
 
   if (PORT) {
-    // HTTP/SSE mode for cloud deployment
-    console.error("Starting Canvas MCP Server in HTTP/SSE mode...");
+    // HTTP mode for cloud deployment (using Streamable HTTP transport)
+    console.error("Starting Canvas MCP Server in HTTP mode...");
     const app = express();
 
     // Store transports by session ID
-    const transports = new Map<string, SSEServerTransport>();
+    const transports = new Map<string, StreamableHTTPServerTransport>();
 
     app.use(cors());
     app.use(express.json());
@@ -80,49 +81,57 @@ async function startServer() {
       res.json({ status: 'ok', server: 'Canvas MCP Server' });
     });
 
-    // SSE endpoint for MCP connection
-    app.get('/sse', async (req, res) => {
-      console.error('New SSE connection established');
+    // MCP endpoint (handles GET, POST, DELETE for Streamable HTTP)
+    app.all('/mcp', async (req, res) => {
+      const sessionId = req.headers['mcp-session-id'] as string | undefined;
 
-      // Create a new server instance for this connection
-      const server = createServer();
-      const transport = new SSEServerTransport('/message', res);
+      console.error(`MCP request: ${req.method} ${req.url}, session: ${sessionId || 'none'}`);
 
-      // Store transport by session ID
-      transports.set(transport.sessionId, transport);
-
-      // Clean up on close
-      transport.onclose = () => {
-        console.error(`SSE connection closed: ${transport.sessionId}`);
-        transports.delete(transport.sessionId);
-      };
-
-      await server.connect(transport);
-      await transport.start();
-    });
-
-    // Message endpoint for receiving client messages
-    app.post('/message', async (req, res) => {
-      const sessionId = req.query.sessionId as string;
-      const transport = transports.get(sessionId);
+      // Get or create transport for this session
+      let transport = sessionId ? transports.get(sessionId) : undefined;
 
       if (!transport) {
-        console.error(`No transport found for session: ${sessionId}`);
-        res.status(404).json({ error: 'Session not found' });
-        return;
+        // Create new server instance and transport for new session
+        const server = createServer();
+        transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+          onsessioninitialized: (newSessionId) => {
+            console.error(`New session initialized: ${newSessionId}`);
+            transports.set(newSessionId, transport!);
+          }
+        });
+
+        transport.onclose = () => {
+          if (transport!.sessionId) {
+            console.error(`Session closed: ${transport!.sessionId}`);
+            transports.delete(transport!.sessionId);
+          }
+        };
+
+        await server.connect(transport);
       }
 
+      // Handle the request
       try {
-        await transport.handlePostMessage(req, res, req.body);
+        await transport.handleRequest(req, res, req.body);
       } catch (error) {
-        console.error('Error handling message:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error handling MCP request:', error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            jsonrpc: '2.0',
+            error: {
+              code: -32603,
+              message: 'Internal server error',
+            },
+            id: null,
+          });
+        }
       }
     });
 
     app.listen(PORT, () => {
       console.error(`Canvas MCP Server running on http://0.0.0.0:${PORT}`);
-      console.error(`SSE endpoint: http://0.0.0.0:${PORT}/sse`);
+      console.error(`MCP endpoint: http://0.0.0.0:${PORT}/mcp`);
     });
   } else {
     // Stdio mode for local usage
